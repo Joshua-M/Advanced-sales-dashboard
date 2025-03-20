@@ -1,76 +1,119 @@
 import streamlit as st
 import plotly.express as px
+import plotly.figure_factory as ff
 import pandas as pd
+import numpy as np
 import os
 
-st.title(" :bar_chart: Exploratory Data Analysis")
-st.markdown('<style>div.block-container{padding-top:1rem;}</style>', unsafe_allow_html=True)
+# Set page config
+st.set_page_config(page_title="Advanced Data Dashboard", page_icon="📊", layout="wide")
 
-# File Uploader for Data
+# Title
+st.title("📊 Advanced Data Analytics Dashboard")
+
+# Sidebar: File Upload
+st.sidebar.header("Upload Dataset")
+fl = st.sidebar.file_uploader("Upload a CSV or Excel file", type=["csv", "xlsx", "xls"])
 df = None
-fl = st.file_uploader(":file_folder: Upload a file", type=["csv", "txt", "xlsx", "xls"])
-if fl is None:
+
+# Load Data
+if fl is not None:
+    file_extension = fl.name.split(".")[-1]
+    if file_extension == "xlsx":
+        df = pd.read_excel(fl, engine="openpyxl")
+    elif file_extension == "xls":
+        df = pd.read_excel(fl, engine="xlrd")
+    else:
+        df = pd.read_csv(fl)
+    st.sidebar.success(f"✅ Loaded {fl.name}")
+else:
     sample_file = "Sample - Superstore.xls"
     if os.path.exists(sample_file):
-        df = pd.read_excel(sample_file, engine='xlrd')  # Specify engine for .xls files
-        st.write("Loaded default dataset.")
+        df = pd.read_excel(sample_file, engine='xlrd')
+        st.sidebar.info("Using Sample Dataset")
     else:
-        st.error("No file uploaded and default dataset is missing. Please upload a file.")
+        st.sidebar.warning("⚠ No file uploaded. Please upload a dataset.")
+        st.stop()
 
-if df is not None:
-    col1, col2 = st.columns((2))
-    df["Order Date"] = pd.to_datetime(df["Order Date"], errors='coerce')
-    
-    # Getting the min and max date
-    startDate, endDate = df["Order Date"].min(), df["Order Date"].max()
-    
-    with col1:
-        date1 = pd.to_datetime(st.date_input("Start Date", startDate))
-    with col2:
-        date2 = pd.to_datetime(st.date_input("End Date", endDate))
+# Convert Date Column
+df["Order Date"] = pd.to_datetime(df["Order Date"], errors="coerce")
 
-    df = df[(df["Order Date"] >= date1) & (df["Order Date"] <= date2)].copy()
+# Sidebar Filters
+st.sidebar.header("🔍 Filters")
+startDate, endDate = df["Order Date"].min(), df["Order Date"].max()
+date1 = st.sidebar.date_input("Start Date", startDate)
+date2 = st.sidebar.date_input("End Date", endDate)
 
-    # Sidebar Filters
-    st.sidebar.header("Choose your filter:")
-    region = st.sidebar.multiselect("Select your Region", df["Region"].dropna().unique())
-    state = st.sidebar.multiselect("Select your State", df["State"].dropna().unique())
-    city = st.sidebar.multiselect("Select your City", df["City"].dropna().unique())
-    
-    # Apply Filters
-    filtered_df = df.copy()
-    if region:
-        filtered_df = filtered_df[filtered_df["Region"].isin(region)]
-    if state:
-        filtered_df = filtered_df[filtered_df["State"].isin(state)]
-    if city:
-        filtered_df = filtered_df[filtered_df["City"].isin(city)]
-    
-    # Category Sales Bar Chart
-    category_df = filtered_df.groupby("Category", as_index=False)["Sales"].sum()
-    with col1:
-        st.subheader("Category Sales")
-        fig = px.bar(category_df, x="Category", y="Sales", text=category_df["Sales"].map("${:,.2f}".format), template="seaborn")
-        st.plotly_chart(fig, use_container_width=True)
-    
-    # Regional Sales Pie Chart
-    with col2:
-        st.subheader("Regional Sales")
-        fig = px.pie(filtered_df, values="Sales", names="Region", hole=0.5)
-        fig.update_traces(text=filtered_df["Region"], textposition="outside")
-        st.plotly_chart(fig, use_container_width=True)
-    
-    # Time Series Analysis
-    st.subheader("Time Series Analysis")
-    filtered_df["month_year"] = filtered_df["Order Date"].dt.to_period("M")
-    linechart = filtered_df.groupby(filtered_df["month_year"].astype(str))["Sales"].sum().reset_index()
-    fig2 = px.line(linechart, x="month_year", y="Sales", labels={"Sales": "Amount"}, height=500, template="gridon")
-    st.plotly_chart(fig2, use_container_width=True)
-    
-    # Summary Table (Full Data Table)
-    st.subheader("Full Data Table")
-    st.write(filtered_df)
-    
-    # Download Processed Data
-    csv = filtered_df.to_csv(index=False).encode('utf-8')
+# Apply Date Filter
+df_filtered = df[(df["Order Date"] >= pd.to_datetime(date1)) & (df["Order Date"] <= pd.to_datetime(date2))]
+
+# Additional Filters
+category = st.sidebar.multiselect("Select Category", df_filtered["Category"].dropna().unique())
+segment = st.sidebar.multiselect("Select Segment", df_filtered["Segment"].dropna().unique())
+profit_range = st.sidebar.slider("Profit Range", float(df_filtered["Profit"].min()), float(df_filtered["Profit"].max()), (float(df_filtered["Profit"].min()), float(df_filtered["Profit"].max())))
+
+# Apply Additional Filters
+if category:
+    df_filtered = df_filtered[df_filtered["Category"].isin(category)]
+if segment:
+    df_filtered = df_filtered[df_filtered["Segment"].isin(segment)]
+df_filtered = df_filtered[(df_filtered["Profit"] >= profit_range[0]) & (df_filtered["Profit"] <= profit_range[1])]
+
+# Metrics Display
+total_sales = df_filtered["Sales"].sum()
+avg_order_value = df_filtered["Sales"].mean()
+total_profit = df_filtered["Profit"].sum()
+total_orders = len(df_filtered)
+
+st.markdown("### 📌 Key Metrics")
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Total Sales", f"${total_sales:,.2f}")
+col2.metric("Avg. Order Value", f"${avg_order_value:,.2f}")
+col3.metric("Total Profit", f"${total_profit:,.2f}")
+col4.metric("Total Orders", total_orders)
+
+# Tabs for Visualization
+st.markdown("### 📊 Data Visualizations")
+tab1, tab2, tab3, tab4 = st.tabs(["📈 Sales Trends", "📊 Category Sales", "🗺️ Heatmaps", "🔍 Detailed Data"])
+
+with tab1:
+    st.subheader("📈 Sales Over Time")
+    df_filtered["month_year"] = df_filtered["Order Date"].dt.to_period("M")
+    sales_trend = df_filtered.groupby(df_filtered["month_year"].astype(str))["Sales"].sum().reset_index()
+    fig = px.line(sales_trend, x="month_year", y="Sales", title="Monthly Sales Trend")
+    st.plotly_chart(fig, use_container_width=True)
+
+with tab2:
+    st.subheader("📊 Sales by Category")
+    category_sales = df_filtered.groupby("Category")["Sales"].sum().reset_index()
+    fig = px.bar(category_sales, x="Category", y="Sales", text=category_sales["Sales"].map("${:,.2f}".format), template="seaborn")
+    st.plotly_chart(fig, use_container_width=True)
+
+with tab3:
+    st.subheader("🗺️ Profit vs. Sales Heatmap")
+    fig = ff.create_annotated_heatmap(
+        z=df_filtered.pivot_table(index="Category", columns="Segment", values="Profit", aggfunc="sum").values,
+        x=df_filtered["Segment"].unique(),
+        y=df_filtered["Category"].unique(),
+        colorscale="Viridis",
+        showscale=True
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+with tab4:
+    st.subheader("🔍 Detailed Data")
+    st.write(df_filtered)
+    csv = df_filtered.to_csv(index=False).encode("utf-8")
     st.download_button("Download Processed Data", data=csv, file_name="Processed_Data.csv", mime="text/csv")
+
+# AI Insights Panel
+st.markdown("### 🤖 AI-Driven Insights")
+insight_placeholder = st.empty()
+
+if total_sales > 100000:
+    insight_placeholder.success("🚀 Sales performance is strong! Consider expanding product lines.")
+elif total_sales < 50000:
+    insight_placeholder.warning("⚠ Sales are lower than expected. Consider revising pricing strategies.")
+
+if avg_order_value > 500:
+    insight_placeholder.info("💡 High average order value detected. Consider loyalty programs.")
