@@ -3,6 +3,9 @@
 ## 🚀 Overview
 This Streamlit dashboard allows users to upload datasets, apply filters, and visualize data through various interactive charts and tables. It is designed for **data exploration, sales analysis, and trend monitoring**.
 
+## 🌍 Live App
+🚀 **Access the dashboard here:** [Advanced Streamlit Dashboard](https://advanced-sales-dashboard-msbvgub8fpu5cvqdeg7uwc.streamlit.app/)
+
 ## 🔹 Features
 - 📂 **Upload CSV/XLS/XLSX Files** for analysis
 - 📅 **Filter by Date Range**
@@ -24,12 +27,6 @@ To start the Streamlit app, run:
 ```bash
 streamlit run Dashboard.py
 ```
-
-## 🌍 Deployment on Streamlit Cloud
-1. Push this repository to GitHub.
-2. Go to [Streamlit Cloud](https://share.streamlit.io/).
-3. Select your GitHub repository and set `Dashboard.py` as the main file.
-4. Click **Deploy**.
 
 ## 📜 License
 This project is licensed under the MIT License.
