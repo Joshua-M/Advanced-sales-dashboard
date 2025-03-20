@@ -91,14 +91,22 @@ with tab2:
 
 with tab3:
     st.subheader("🗺️ Profit vs. Sales Heatmap")
-    fig = ff.create_annotated_heatmap(
-        z=df_filtered.pivot_table(index="Category", columns="Segment", values="Profit", aggfunc="sum").values,
-        x=df_filtered["Segment"].unique(),
-        y=df_filtered["Category"].unique(),
-        colorscale="Viridis",
-        showscale=True
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    
+    # Prepare data for heatmap
+    heatmap_data = df_filtered.pivot_table(index="Category", columns="Segment", values="Profit", aggfunc="sum")
+    
+    if heatmap_data.empty:
+        st.warning("⚠ No data available for the heatmap. Try adjusting the filters.")
+    else:
+        fig = ff.create_annotated_heatmap(
+            z=heatmap_data.values,
+            x=heatmap_data.columns.tolist(),
+            y=heatmap_data.index.tolist(),
+            colorscale="Viridis",
+            showscale=True
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
 
 with tab4:
     st.subheader("🔍 Detailed Data")
